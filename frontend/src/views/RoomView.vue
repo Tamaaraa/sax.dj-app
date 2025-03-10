@@ -8,10 +8,7 @@
     </div>
 
     <div class="content">
-      <div class="video-container">
-        <h2>Now Playing</h2>
-        <p>Embed YouTube player here</p>
-      </div>
+      <div class="video-container">Youtube player placeholder</div>
 
       <div class="chat-container">
         <div class="chat-messages">
@@ -54,7 +51,7 @@ export default {
 
     // Fetch room details
     axios
-      .get(`http://127.0.0.1:5000/rooms/${room_id}`)
+      .get(`http://127.0.0.1:5000/api/rooms/${room_id}`)
       .then((response) => {
         this.room_data = response.data;
       })
@@ -108,6 +105,7 @@ body {
   color: white;
   font-size: 1.2rem;
   cursor: pointer;
+  max-width: 90px;
 }
 
 .room-name {
@@ -133,7 +131,6 @@ body {
   justify-content: center;
 }
 
-/* Chat Section */
 .chat-container {
   flex: 1;
   background: #111;
@@ -143,14 +140,12 @@ body {
   height: 100%;
 }
 
-/* Chat Messages */
 .chat-messages {
   flex: 1;
   padding: 10px;
   overflow-y: auto;
 }
 
-/* Chat Input */
 .chat-input {
   display: flex;
   padding: 10px;
@@ -158,7 +153,7 @@ body {
 }
 
 .chat-input input {
-  flex: 1;
+  flex: 4;
   padding: 5px;
   border: none;
   background: #333;
@@ -166,6 +161,7 @@ body {
 }
 
 .chat-input button {
+  flex: 1;
   margin-left: 10px;
   background: #444;
   border: none;

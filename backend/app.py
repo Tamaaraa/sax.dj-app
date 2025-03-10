@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, url_for, render_template, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from supabase import create_client, Client
 import os
@@ -11,23 +11,48 @@ key: str = os.environ.get("SUPA_KEY")
 supabase: Client = create_client(url, key)
 
 app = Flask(__name__)
-CORS(app)
 
-@app.route("/")
-def hello_world():
-    # TODO: Login page
-    return redirect(url_for("browse"))
+@app.route("/api/register", methods=["POST", "OPTIONS"])
+def register():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+    username = data.get("username")
 
-@app.route('/ping', methods=['GET'])
-def ping_pong():
-    return jsonify('pong!')
+    if not email or not password or not username:
+        return jsonify({"error": "Missing fields"}), 400
 
-@app.route("/browse")
+    response = supabase.auth.sign_up({"email": email, "password": password})
+    if "error" in response:
+        return jsonify(response["error"]), 400
+
+    user_id = response.user.id
+    supabase.table("users").insert({"id": user_id, "username": username}).execute()
+
+    return jsonify({"message": "User registered"}), 201
+
+@app.route("/api/login", methods=["POST", "OPTIONS"])
+def login():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"error": "Missing fields"}), 400
+
+    response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+
+    if "error" in response:
+        return jsonify(response["error"]), 400
+
+    return jsonify({"message": "Login successful"}), 200
+
+@app.route("/api/browse", methods=["GET"])
 def browse():
     rooms = supabase.table("room").select("*").execute()
     return jsonify(rooms.data)
 
-@app.route("/rooms", methods=["POST"])
+@app.route("/api/rooms/create", methods=["POST"])
 def create_room():
     data = request.json
     room_name = data.get("name")
@@ -39,10 +64,9 @@ def create_room():
     res = supabase.table("room").insert({"name": room_name, "description": room_desc}).execute()
     return jsonify(res.data), 201
 
-@app.route("/rooms/<room_id>", methods=["GET"])
+@app.route("/api/rooms/<room_id>", methods=["GET"])
 def get_room_info(room_id):
     res = supabase.table("room").select("*").eq("id", room_id).execute()
-    print(res)
     if not res:
         return jsonify({"error": "Room doesn't exist"}), 404
     return jsonify(res.data[0])
