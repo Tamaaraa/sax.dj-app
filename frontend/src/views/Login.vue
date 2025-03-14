@@ -1,6 +1,6 @@
 <template>
   <div class="auth-container">
-    <h2>{{ loginValid ? "Login" : "Register" }}</h2>
+    <h2>{{ isLogin ? "Login" : "Register" }}</h2>
     <form @submit.prevent="handleLogin">
       <input v-model="email" type="email" placeholder="Email" required />
       <input
@@ -10,19 +10,17 @@
         required
       />
       <input
-        v-if="!loginValid"
+        v-if="!isLogin"
         v-model="username"
         type="text"
         placeholder="Username"
         required
       />
-      <button type="submit">{{ loginValid ? "Login" : "Register" }}</button>
+      <button type="submit">{{ isLogin ? "Login" : "Register" }}</button>
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </form>
     <p class="registerlogin" @click="toggleRegister">
-      {{
-        loginValid ? "No account? Register" : "Already have an account? Login"
-      }}
+      {{ isLogin ? "No account? Register" : "Already have an account? Login" }}
     </p>
   </div>
 </template>
@@ -34,19 +32,20 @@ export default {
       email: "",
       password: "",
       username: "",
-      loginValid: true,
+      isLogin: true,
       errorMessage: "",
     };
   },
   methods: {
     async handleLogin() {
-      const url = this.loginValid
+      const url = this.isLogin
         ? "http://localhost:5000/api/login"
         : "http://localhost:5000/api/register";
+
       const loginDetails = {
         email: this.email,
         password: this.password,
-        ...(this.loginValid ? {} : { username: this.username }),
+        ...(this.isLogin ? {} : { username: this.username }),
       };
 
       try {
@@ -59,17 +58,18 @@ export default {
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Something went wrong");
+        if (!response.ok) {
+          throw new Error(data.error || "Something went wrong");
+        }
+        localStorage.setItem("token", data.token);
 
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        if (this.loginValid) this.$router.push("/browse");
+        this.$router.push("/browse");
       } catch (error) {
         this.errorMessage = error.message;
       }
     },
     toggleRegister() {
-      this.loginValid = !this.loginValid;
+      this.isLogin = !this.isLogin;
       this.errorMessage = "";
     },
   },

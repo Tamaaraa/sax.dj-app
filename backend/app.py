@@ -11,9 +11,13 @@ key: str = os.environ.get("SUPA_KEY")
 supabase: Client = create_client(url, key)
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route("/api/register", methods=["POST", "OPTIONS"])
 def register():
+    if request.method == "OPTIONS":
+        return cors_preflight()
+    
     data = request.json
     email = data.get("email")
     password = data.get("password")
@@ -22,17 +26,24 @@ def register():
     if not email or not password or not username:
         return jsonify({"error": "Missing fields"}), 400
 
-    response = supabase.auth.sign_up({"email": email, "password": password})
-    if "error" in response:
-        return jsonify(response["error"]), 400
+    try:
+        response = supabase.auth.sign_up({"email": email, "password": password, "options": { "data": {"display_name": username}}})
 
-    user_id = response.user.id
-    supabase.table("users").insert({"id": user_id, "username": username}).execute()
+        if not response or not hasattr(response, "session") or not response.session:
+            return jsonify({"error": "Invalid email or password"}), 400
 
-    return jsonify({"message": "User registered"}), 201
+        return jsonify({"message": "Sign up successful", "token": response.session.access_token}), 201
+    
+    except Exception as e:
+        print(f"Login error: {e}")
+        return jsonify({"error": f"Sign up error: {(str(e))}"}), 400
+
 
 @app.route("/api/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return cors_preflight()
+    
     data = request.json
     email = data.get("email")
     password = data.get("password")
@@ -40,12 +51,18 @@ def login():
     if not email or not password:
         return jsonify({"error": "Missing fields"}), 400
 
-    response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+    try:
+        response = supabase.auth.sign_in_with_password({"email": email, "password": password})
 
-    if "error" in response:
-        return jsonify(response["error"]), 400
+        if not response or not hasattr(response, "session") or not response.session:
+            return jsonify({"error": "Invalid email or password"}), 400
 
-    return jsonify({"message": "Login successful"}), 200
+        return jsonify({"message": "Login successful", "token": response.session.access_token}), 200
+
+    except Exception as e:
+        print(f"Login error: {e}")
+        return jsonify({"error": f"Login error: {(str(e))}"}), 400
+
 
 @app.route("/api/browse", methods=["GET"])
 def browse():
@@ -70,6 +87,13 @@ def get_room_info(room_id):
     if not res:
         return jsonify({"error": "Room doesn't exist"}), 404
     return jsonify(res.data[0])
+
+def cors_preflight():
+    response = jsonify({"message": "CORS preflight success"})
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    return response
 
 if __name__ == "__main__":
     app.run(debug=True)
