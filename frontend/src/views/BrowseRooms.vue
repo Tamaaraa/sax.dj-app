@@ -1,8 +1,14 @@
 <template>
   <div class="browse-container">
-    <button @click="showModal = true" class="create-room-btn">
-      + Create Room
-    </button>
+    <div class="top-bar">
+      <button @click="showModal = true" class="create-room-btn">
+        + Create Room
+      </button>
+
+      <div class="logout">
+        <LogoutButton />
+      </div>
+    </div>
 
     <div class="rooms-grid">
       <div v-for="room in rooms" :key="room.id" class="room-card">
@@ -33,8 +39,12 @@
 
 <script>
 import axios from "axios";
+import LogoutButton from "@/components/LogoutButton.vue";
 
 export default {
+  components: {
+    LogoutButton,
+  },
   data() {
     return {
       showModal: false,
@@ -49,7 +59,19 @@ export default {
   methods: {
     async fetchRooms() {
       try {
-        const response = await axios.get("http://127.0.0.1:5000/api/browse");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found, redirecting to login...");
+          this.$router.push("/login");
+          return;
+        }
+
+        const response = await axios.get("http://127.0.0.1:5000/api/browse", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         this.rooms = response.data;
       } catch (error) {
         console.error("Failed to fetch rooms from database: ", error);
@@ -59,10 +81,24 @@ export default {
       if (!this.roomName.trim()) return alert("Room name is required!");
 
       try {
-        await axios.post("http://127.0.0.1:5000/api/rooms/create", {
-          name: this.roomName,
-          description: this.roomDesc,
-        });
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found, redirecting to login...");
+          this.$router.push("/login");
+          return;
+        }
+        await axios.post(
+          "http://127.0.0.1:5000/api/rooms/create",
+          {
+            name: this.roomName,
+            description: this.roomDesc,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         this.showModal = false;
         this.roomName = "";
@@ -77,6 +113,22 @@ export default {
 </script>
 
 <style>
+.logout {
+  padding: 10px;
+  align-items: flex-end;
+  max-width: 150px;
+}
+
+.create-room-btn {
+  padding: 10px;
+  background: #444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 20px;
+  max-width: 150px;
+}
+
 .browse-container {
   padding: 20px;
   background: #121212;
@@ -133,16 +185,6 @@ export default {
   color: #aaa;
 }
 
-.create-room-btn {
-  padding: 10px;
-  background: #444;
-  color: white;
-  border: none;
-  cursor: pointer;
-  margin-bottom: 20px;
-  max-width: 150px;
-}
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -181,5 +223,11 @@ export default {
     padding: 8px 15px;
     cursor: pointer;
   }
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  background: #121212;
 }
 </style>

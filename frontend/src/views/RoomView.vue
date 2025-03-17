@@ -1,6 +1,6 @@
 <template>
   <div class="room-container">
-    <div class="top-bar">
+    <div class="room-top-bar">
       <button @click="$router.push('/browse')" class="back-button">
         ← Back
       </button>
@@ -13,11 +13,11 @@
       <div class="chat-container">
         <div class="chat-messages">
           <div
-            v-for="(message, index) in chatMessages"
+            v-for="(message, index) in messages"
             :key="index"
             class="chat-message"
           >
-            <strong>{{ message.username }}:</strong> {{ message.text }}
+            <strong>{{ message.username }}:</strong> {{ message.content }}
           </div>
         </div>
 
@@ -37,35 +37,84 @@
 
 <script>
 import axios from "axios";
+import { io } from "socket.io-client";
 
 export default {
   data() {
     return {
       room_data: {},
-      chatMessages: [],
+      messages: [],
       newMessage: "",
+      socket: null,
     };
   },
   mounted() {
+    const token = localStorage.getItem("token");
     const room_id = this.$route.params.room_id;
+
+    if (!token) {
+      console.error("No token found, redirecting to login...");
+      this.$router.push("/login");
+      return;
+    }
 
     // Fetch room details
     axios
-      .get(`http://127.0.0.1:5000/api/rooms/${room_id}`)
+      .get(`http://127.0.0.1:5000/api/rooms/${room_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       .then((response) => {
         this.room_data = response.data;
       })
-      .catch((error) => {
-        console.error("Error fetching room data:", error);
-      });
+      .catch((error) => console.error("Error fetching room data:", error));
+
+    this.fetchMessages();
+
+    this.socket = io("http://127.0.0.1:5000");
+
+    this.socket.emit("join", { room_id });
+
+    this.socket.on("message", (message) => {
+      this.messages.push(message);
+      console.log(message);
+    });
   },
   methods: {
-    sendMessage() {
-      if (this.newMessage.trim() !== "") {
-        this.chatMessages.push({ username: "You", text: this.newMessage });
-        this.newMessage = "";
+    async fetchMessages() {
+      try {
+        const token = localStorage.getItem("token");
+        const room_id = this.$route.params.room_id;
+
+        const response = await axios.get(
+          `http://127.0.0.1:5000/api/rooms/${room_id}/messages`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        this.messages = response.data;
+      } catch (error) {
+        console.error("Error fetching messages:", error);
       }
     },
+    sendMessage() {
+      if (!this.newMessage) return;
+      const token = localStorage.getItem("token");
+      const username = localStorage.getItem("username");
+
+      this.socket.emit("message", {
+        room_id: this.$route.params.room_id,
+        content: this.newMessage,
+        token,
+        username,
+      });
+
+      this.newMessage = "";
+    },
+  },
+  beforeUnmount() {
+    if (this.socket) {
+      this.socket.disconnect();
+    }
   },
 };
 </script>
@@ -77,10 +126,7 @@ export default {
   box-sizing: border-box;
 }
 
-html,
 body {
-  width: 100vw;
-  height: 100vh;
   overflow: hidden;
 }
 
@@ -90,10 +136,10 @@ body {
   height: 100vh;
 }
 
-.top-bar {
+.room-top-bar {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 10px 90px 10px 10px;
   background: #222;
   color: white;
   width: 100%;
@@ -122,7 +168,7 @@ body {
 }
 
 .video-container {
-  flex: 4;
+  flex: 3;
   background: #333;
   color: white;
   display: flex;

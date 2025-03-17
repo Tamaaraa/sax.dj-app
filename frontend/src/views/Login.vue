@@ -1,27 +1,31 @@
 <template>
-  <div class="auth-container">
-    <h2>{{ isLogin ? "Login" : "Register" }}</h2>
-    <form @submit.prevent="handleLogin">
-      <input v-model="email" type="email" placeholder="Email" required />
-      <input
-        v-model="password"
-        type="password"
-        placeholder="Password"
-        required
-      />
-      <input
-        v-if="!isLogin"
-        v-model="username"
-        type="text"
-        placeholder="Username"
-        required
-      />
-      <button type="submit">{{ isLogin ? "Login" : "Register" }}</button>
-      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-    </form>
-    <p class="registerlogin" @click="toggleRegister">
-      {{ isLogin ? "No account? Register" : "Already have an account? Login" }}
-    </p>
+  <div class="centered-div">
+    <div class="auth-container">
+      <h2>{{ isLogin ? "Login" : "Register" }}</h2>
+      <form @submit.prevent="handleLogin">
+        <input v-model="email" type="email" placeholder="Email" required />
+        <input
+          v-model="password"
+          type="password"
+          placeholder="Password"
+          required
+        />
+        <input
+          v-if="!isLogin"
+          v-model="username"
+          type="text"
+          placeholder="Username"
+          required
+        />
+        <button type="submit">{{ isLogin ? "Login" : "Register" }}</button>
+        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      </form>
+      <p class="registerlogin" @click="toggleRegister">
+        {{
+          isLogin ? "No account? Register" : "Already have an account? Login"
+        }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -61,7 +65,9 @@ export default {
         if (!response.ok) {
           throw new Error(data.error || "Something went wrong");
         }
+        console.log(data);
         localStorage.setItem("token", data.token);
+        localStorage.setItem("username", data.username);
 
         this.$router.push("/browse");
       } catch (error) {
@@ -77,20 +83,34 @@ export default {
 </script>
 
 <style>
-.auth-container {
-  max-width: 300px;
-  margin: auto;
-  text-align: center;
+.centered-div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #121212;
+  color: whitesmoke;
+  min-height: 100vh;
+  width: 100vw;
 }
+
+.auth-container {
+  text-align: center;
+  height: 200px;
+  width: 300px;
+}
+
 input,
 button {
+  background: #444;
+  color: white;
   display: block;
+  border: none;
   width: 100%;
   margin: 10px 0;
   padding: 8px;
 }
 .registerlogin {
   cursor: pointer;
-  color: blue;
+  color: rgb(0, 161, 161);
 }
 </style>
