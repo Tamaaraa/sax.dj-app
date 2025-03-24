@@ -65,7 +65,6 @@ export default {
         if (!response.ok) {
           throw new Error(data.error || "Something went wrong");
         }
-        console.log(data);
         localStorage.setItem("token", data.token);
         localStorage.setItem("username", data.username);
 

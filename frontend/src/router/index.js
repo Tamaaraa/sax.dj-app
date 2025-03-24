@@ -19,7 +19,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem("token");
   if (to.path === "/") {
     if (token) {
@@ -29,7 +29,28 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  if (to.meta.requiresAuth && !token) {
+  if (to.meta.requiresAuth && token) {
+    try {
+      const response = await fetch("http://localhost:5000/api/verify-token", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.status === 401) {
+        const data = await response.json();
+        if (data.logout) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("username");
+          next("/login");
+        } else {
+          next();
+        }
+      } else {
+        next();
+      }
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      next("/login");
+    }
+  } else if (to.meta.requiresAuth && !token) {
     next("/login");
   } else if (to.path === "/login" && token) {
     next("/browse");

@@ -3,8 +3,9 @@ from flask_cors import CORS
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime 
+import requests
 
 load_dotenv()
 
@@ -41,7 +42,6 @@ def register():
         print(f"Login error: {e}")
         return jsonify({"error": f"Sign up error: {(str(e))}"}), 400
 
-
 @app.route("/api/login", methods=["POST", "OPTIONS"])
 def login():
     if request.method == "OPTIONS":
@@ -66,13 +66,12 @@ def login():
         print(f"Login error: {e}")
         return jsonify({"error": f"Login error: {(str(e))}"}), 400
 
-
 @app.route("/api/browse", methods=["GET"])
 def browse():
     error = verify_token()
     if error:
         return error
-    rooms = supabase.table("room").select("*").execute()
+    rooms = supabase.table("room").select("*").order("created_at", desc=False).execute()
     return jsonify(rooms.data)
 
 @app.route("/api/rooms/create", methods=["POST"])
@@ -127,6 +126,96 @@ def get_room_messages(room_id):
 
     return jsonify(messages.data)
 
+@app.route("/api/rooms/<room_id>/queue", methods=["GET"])
+def get_video_queue(room_id):
+    queue = (
+        supabase.table("video_queue")
+        .select("*")
+        .eq("room_id", room_id)
+        .order("position", desc=False)
+        .execute()
+    )
+    return jsonify(queue.data)
+
+@app.route("/api/rooms/<room_id>/queue", methods=["POST"])
+def add_video_to_queue(room_id):
+    error = verify_token()
+    if error:
+        return error
+
+    data = request.json
+    video_url = data.get("video_url")
+    if not video_url:
+        return jsonify({"error": "Video URL is required"}), 400
+
+    if video_url.startswith("https://www.youtube.com/watch?v="):
+        video_id = video_url.split('=')[1]
+        video_url = f"https://www.youtube.com/embed/{video_id}"
+    elif video_url.startswith("https://youtu.be/"):
+        video_id = video_url.split('/')[3]
+        video_url = f"https://www.youtube.com/embed/{video_id}"
+    elif video_url.startswith("https://www.youtube.com/embed/"):
+        video_id = video_url.split('/')[-1]
+    else:
+        return jsonify({"error": "Invalid video URL"}), 400
+
+    video_url += "?autoplay=1&controls=0"
+
+    try:
+        response = requests.get(f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json")
+        response.raise_for_status()
+        video_title = response.json().get("title", "Unknown Title")
+        video_thumbnail= response.json().get("thumbnail_url", "https://cdn-icons-png.freepik.com/512/683/683935.png")
+    except Exception as e:
+        print(f"Error fetching video title: {e}")
+        video_title = "Unknown Title"
+
+    max_position = (
+        supabase.table("video_queue")
+        .select("position")
+        .eq("room_id", room_id)
+        .order("position", desc=True)
+        .limit(1)
+        .execute()
+    )
+    next_position = (max_position.data[0]["position"] + 1) if max_position.data else 1
+
+    supabase.table("video_queue").insert({
+        "room_id": room_id,
+        "video_url": video_url,
+        "video_title": video_title,
+        "position": next_position,
+        "requester": data.get("requester"),
+        "video_thumbnail": video_thumbnail,
+    }).execute()
+
+    return jsonify({"message": "Video added to queue"}), 201
+
+@app.route("/api/rooms/<room_id>/queue", methods=["DELETE"])
+def remove_video_from_queue(room_id):
+    error = verify_token()
+    if error:
+        return error
+
+    data = request.json
+    video_id = data.get("video_id")
+    if not video_id:
+        return jsonify({"error": "Video ID required"}), 400
+
+    supabase.table("video_queue").delete().eq("id", video_id).execute()
+    return jsonify({"message": "Video removed from queue"}), 200
+
+@app.route("/api/verify-token", methods=["GET", "OPTIONS"])
+def verify():
+    if request.method == "OPTIONS":
+        return cors_preflight()
+
+    error = verify_token()
+    if error:
+        return error
+
+    return jsonify({"message": "Token is valid"}), 200
+
 def cors_preflight():
     response = jsonify({"message": "CORS preflight success"})
     response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
@@ -150,7 +239,9 @@ def verify_token(token=None, return_user=False):
         if return_user:
             return user.user
 
-    except Exception:
+    except Exception as e:
+        if "expired" in str(e).lower():
+            return jsonify({"error": "Token expired", "logout": True}), 401
         return jsonify({"error": "Invalid token"}), 401
 
     return None
@@ -187,6 +278,31 @@ def handle_message(data):
         "content": content,
         "created_at": datetime.now().isoformat()
     }, room=room_id)
+
+@socketio.on("leave")
+def handle_leave(data):
+    room_id = data["room_id"]
+    leave_room(room_id)
+
+@socketio.on("play_next_video")
+def handle_play_next_video(data):
+    room_id = data["room_id"]
+
+    next_video = (
+        supabase.table("video_queue")
+        .select("*")
+        .eq("room_id", room_id)
+        .order("position", desc=False)
+        .limit(1)
+        .execute()
+    )
+
+    if next_video.data:
+        video = next_video.data[0]
+        supabase.table("room").update({"room_thumbnail": video["video_thumbnail"]}).eq("id", room_id).execute()
+        emit("play_video", {"video_url": video["video_url"]}, room=room_id)
+
+        supabase.table("video_queue").delete().eq("id", video["id"]).execute()
     
 
 if __name__ == "__main__":

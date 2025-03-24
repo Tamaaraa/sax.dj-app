@@ -8,8 +8,9 @@
     </div>
 
     <div class="content">
-      <div class="video-container">Youtube player placeholder</div>
-
+      <div class="video-container">
+        <VideoPlayer v-if="socket" :socket="socket" />
+      </div>
       <div class="chat-container">
         <div class="chat-messages">
           <div
@@ -38,8 +39,12 @@
 <script>
 import axios from "axios";
 import { io } from "socket.io-client";
+import VideoPlayer from "@/components/VideoPlayer.vue";
 
 export default {
+  components: {
+    VideoPlayer,
+  },
   data() {
     return {
       room_data: {},
@@ -65,6 +70,7 @@ export default {
       })
       .then((response) => {
         this.room_data = response.data;
+        this.room_data.id = room_id;
       })
       .catch((error) => console.error("Error fetching room data:", error));
 
@@ -76,7 +82,10 @@ export default {
 
     this.socket.on("message", (message) => {
       this.messages.push(message);
-      console.log(message);
+
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
     });
   },
   methods: {
@@ -92,6 +101,10 @@ export default {
           }
         );
         this.messages = response.data;
+
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
       } catch (error) {
         console.error("Error fetching messages:", error);
       }
@@ -102,7 +115,7 @@ export default {
       const username = localStorage.getItem("username");
 
       this.socket.emit("message", {
-        room_id: this.$route.params.room_id,
+        room_id: this.room_data.id,
         content: this.newMessage,
         token,
         username,
@@ -110,10 +123,19 @@ export default {
 
       this.newMessage = "";
     },
+
+    scrollToBottom() {
+      const chatContainer = this.$el.querySelector(".chat-messages");
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    },
   },
   beforeUnmount() {
     if (this.socket) {
+      this.socket.emit("leave", { room_id: this.room_data.id });
       this.socket.disconnect();
+      this.socket = null;
     }
   },
 };
@@ -167,23 +189,13 @@ body {
   height: 100%;
 }
 
-.video-container {
-  flex: 3;
-  background: #333;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
 .chat-container {
   flex: 1;
   background: #111;
   display: flex;
   flex-direction: column;
   color: white;
-  height: 100%;
+  max-height: calc(100vh - 78px);
 }
 
 .chat-messages {
@@ -213,5 +225,16 @@ body {
   border: none;
   color: white;
   cursor: pointer;
+}
+
+.video-container {
+  flex: 3;
+  background: #333;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
 }
 </style>

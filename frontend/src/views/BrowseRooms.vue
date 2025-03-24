@@ -13,7 +13,14 @@
     <div class="rooms-grid">
       <div v-for="room in rooms" :key="room.id" class="room-card">
         <router-link :to="`/rooms/${room.id}`">
-          <img class="room-thumbnail" />
+          <img
+            class="room-thumbnail"
+            :src="
+              room.room_thumbnail ||
+              'https://cdn-icons-png.freepik.com/512/683/683935.png'
+            "
+            alt="Room Thumbnail"
+          />
           <div class="room-info">
             <h3 class="room-title">{{ room.name }}</h3>
             <p class="room-description">{{ room.description }}</p>
@@ -22,7 +29,6 @@
       </div>
     </div>
 
-    <!-- Room Creation Modal -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
         <h2>Create a New Room</h2>
@@ -165,8 +171,6 @@ export default {
   width: 100%;
   height: 150px;
   object-fit: cover;
-  background: url("https://cdn-icons-png.freepik.com/512/683/683935.png")
-    center/cover no-repeat;
 }
 
 .room-info {
