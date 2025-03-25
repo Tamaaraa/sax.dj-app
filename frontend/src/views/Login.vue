@@ -43,8 +43,8 @@ export default {
   methods: {
     async handleLogin() {
       const url = this.isLogin
-        ? "http://localhost:5000/api/login"
-        : "http://localhost:5000/api/register";
+        ? "http://127.0.0.1:5000/api/login"
+        : "http://127.0.0.1:5000/api/register";
 
       const loginDetails = {
         email: this.email,

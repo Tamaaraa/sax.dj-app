@@ -15,10 +15,7 @@ coverage
 *.local
 *.env
 
-/cypress/videos/
-/cypress/screenshots/
-
-# Editor directories and files
+# Editor stuff
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -28,3 +25,11 @@ coverage
 *.sln
 *.sw?
 */__pycache__
+
+# Tests
+/cypress/videos/
+/cypress/screenshots/
+
+.pytest_cache/
+/backend/tests/__pycache__
+/frontend/cypress/downloads
