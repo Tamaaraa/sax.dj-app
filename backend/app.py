@@ -37,7 +37,7 @@ def create_app():
                 return jsonify({"error": "Invalid email or password"}), 400
             
             supabase.table("users").insert([{ "id": response.user.id, "username": username }]).execute()
-            return jsonify({"message": "Sign up successful", "token": response.session.access_token, "username": response.user.user_metadata["display_name"]}), 201
+            return jsonify({"message": "Sign up successful", "token": response.session.access_token, "username": response.user.user_metadata["display_name"], "user_id": response.user.id}), 201
         
         except Exception as e:
             print(f"Login error: {e}")
@@ -61,11 +61,39 @@ def create_app():
             if not response or not response.session:
                 return jsonify({"error": "Invalid email or password"}), 400
 
-            return jsonify({"message": "Login successful", "token": response.session.access_token, "username": response.user.user_metadata["display_name"]}), 200
+            return jsonify({
+                "message": "Login successful",
+                "token": response.session.access_token,
+                "username": response.user.user_metadata["display_name"]
+            }), 200
 
         except Exception as e:
             print(f"Login error: {e}")
             return jsonify({"error": f"Login error: {(str(e))}"}), 400
+
+    @app.route("/api/login/delete", methods=["DELETE"])
+    def delete_user():
+        admin_key = os.environ.get("SUPA_SERVICE_ROLE")
+        if not admin_key:
+            return jsonify({"error": "Admin key not configured"}), 500
+
+        user_id = request.json.get("user_id")
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+
+        try:
+            headers = {"Authorization": f"Bearer {admin_key}"}
+            response = requests.delete(
+                f"{url}/auth/v1/admin/users/{user_id}",
+                headers=headers
+            )
+            if response.status_code == 204:
+                return jsonify({"message": "User deleted successfully"}), 200
+            else:
+                return jsonify({"error": "Failed to delete user", "details": response.json()}), response.status_code
+        except Exception as e:
+            print(f"Error deleting user: {e}")
+            return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/browse", methods=["GET"])
     def browse():

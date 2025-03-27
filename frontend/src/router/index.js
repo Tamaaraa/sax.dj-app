@@ -31,7 +31,7 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth && token) {
     try {
-      const response = await fetch("http://localhost:5000/api/verify-token", {
+      const response = await fetch("http://127.0.0.1:5000/api/verify-token", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.status === 401) {
