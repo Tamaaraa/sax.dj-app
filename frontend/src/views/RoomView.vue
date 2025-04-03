@@ -18,7 +18,7 @@
             :key="index"
             class="chat-message"
           >
-            <strong>{{ message.username }}:</strong> {{ message.content }}
+            <strong>{{ message.display_name }}:</strong> {{ message.content }}
           </div>
         </div>
 
@@ -101,6 +101,7 @@ export default {
           }
         );
         this.messages = response.data;
+        console.log(response.data);
 
         this.$nextTick(() => {
           this.scrollToBottom();

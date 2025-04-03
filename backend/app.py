@@ -7,7 +7,9 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime 
 import requests
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(__file__), '../.env')
+load_dotenv(dotenv_path=env_path)
+
 
 def create_app():
     app = Flask(__name__)
@@ -17,6 +19,8 @@ def create_app():
     url: str = os.environ.get("SUPA_URL")
     key: str = os.environ.get("SUPA_KEY")
     supabase: Client = create_client(url, key)
+    
+    initialize_users(supabase)
 
     @app.route("/api/register", methods=["POST", "OPTIONS"])
     def register():
@@ -36,7 +40,7 @@ def create_app():
             if not response or not response.session:
                 return jsonify({"error": "Invalid email or password"}), 400
             
-            supabase.table("users").insert([{ "id": response.user.id, "username": username }]).execute()
+            supabase.table("users").insert([{ "user_id": response.user.id, "display_name": username }]).execute()
             return jsonify({"message": "Sign up successful", "token": response.session.access_token, "username": response.user.user_metadata["display_name"], "user_id": response.user.id}), 201
         
         except Exception as e:
@@ -105,18 +109,19 @@ def create_app():
 
     @app.route("/api/rooms/create", methods=["POST"])
     def create_room():
-        error = verify_token()
-        if error:
-            return error
+        user = verify_token(return_user=True)
+        if not user:
+            return jsonify({"error": "Invalid token"}), 401
         
         data = request.json
+        creator_id = user.id
         room_name = data.get("name")
         room_desc = data.get("description", "")
 
         if not room_name:
             return jsonify({"error": "Room name is required"}), 400
 
-        res = supabase.table("room").insert({"name": room_name, "description": room_desc}).execute()
+        res = supabase.table("room").insert({"name": room_name, "description": room_desc, "creator_id": creator_id}).execute()
         return jsonify(res.data), 201
 
     @app.route("/api/rooms/<room_id>", methods=["GET"])
@@ -143,15 +148,15 @@ def create_app():
         sender_ids = {msg["sender_id"] for msg in messages.data}
         users = (
             supabase.table("users")
-            .select("id, username")
-            .in_("id", list(sender_ids))
+            .select("user_id, display_name")
+            .in_("user_id", list(sender_ids))
             .execute()
         )
 
-        user_dic = {user["id"]: user["username"] for user in users.data}
+        user_dic = {user["user_id"]: user["display_name"] for user in users.data}
 
         for message in messages.data:
-            message["username"] = user_dic.get(message["sender_id"], "Unknown User")
+            message["display_name"] = user_dic.get(message["sender_id"], "Unknown User")
 
         return jsonify(messages.data)
 
@@ -290,9 +295,10 @@ def create_app():
             return
 
         sender_id = user.id
+
         room_id = data["room_id"]
         content = data["content"]
-        username = data["username"]
+        display_name = user.user_metadata["display_name"]
 
         supabase.table("messages").insert({
             "room_id": room_id,
@@ -303,7 +309,7 @@ def create_app():
 
         emit("message", {
             "sender_id": sender_id,
-            "username": username,
+            "display_name": display_name,
             "content": content,
             "created_at": datetime.now().isoformat()
         }, room=room_id)
@@ -334,6 +340,32 @@ def create_app():
             supabase.table("video_queue").delete().eq("id", video["id"]).execute()
 
     return app, socketio
+
+
+def initialize_users(supabase):
+    """Creates 2 testing accounts if they don't exist."""
+    users = [
+        {"email": "testing1@gmail.com", "password": os.environ.get("TEST_ACC_1_PASS"), "username": "Testing1"},
+        {"email": "testing2@gmail.com", "password": os.environ.get("TEST_ACC_2_PASS"), "username": "Testing2"}
+    ]
+
+    for user in users:
+        try:
+            existing_user = supabase.table("users").select("*").eq("display_name", user["username"]).execute()
+            if not existing_user.data:
+                response = supabase.auth.sign_up({
+                    "email": user["email"],
+                    "password": user["password"],
+                    "options": {"data": {"display_name": user["username"]}}
+                })
+                if response and response.user:
+                    res2 = supabase.table("users").insert([{
+                        "user_id": response.user.id,
+                        "display_name": user["username"]
+                    }]).execute()
+        except Exception as e:
+            print(f"Error initializing user {user['email']}: {e}")
+
 
 if __name__ == "__main__":
     app, socketio = create_app()
