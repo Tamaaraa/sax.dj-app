@@ -75,29 +75,29 @@ def create_app():
             print(f"Login error: {e}")
             return jsonify({"error": f"Login error: {(str(e))}"}), 400
 
-    @app.route("/api/login/delete", methods=["DELETE"])
-    def delete_user():
-        admin_key = os.environ.get("SUPA_SERVICE_ROLE")
-        if not admin_key:
-            return jsonify({"error": "Admin key not configured"}), 500
+    # @app.route("/api/login/delete", methods=["DELETE"])
+    # def delete_user():
+    #     admin_key = os.environ.get("SUPA_SERVICE_ROLE")
+    #     if not admin_key:
+    #         return jsonify({"error": "Admin key not configured"}), 500
 
-        user_id = request.json.get("user_id")
-        if not user_id:
-            return jsonify({"error": "User ID is required"}), 400
+    #     user_id = request.json.get("user_id")
+    #     if not user_id:
+    #         return jsonify({"error": "User ID is required"}), 400
 
-        try:
-            headers = {"Authorization": f"Bearer {admin_key}"}
-            response = requests.delete(
-                f"{url}/auth/v1/admin/users/{user_id}",
-                headers=headers
-            )
-            if response.status_code == 204:
-                return jsonify({"message": "User deleted successfully"}), 200
-            else:
-                return jsonify({"error": "Failed to delete user", "details": response.json()}), response.status_code
-        except Exception as e:
-            print(f"Error deleting user: {e}")
-            return jsonify({"error": "Internal server error"}), 500
+    #     try:
+    #         headers = {"Authorization": f"Bearer {admin_key}"}
+    #         response = requests.delete(
+    #             f"{url}/auth/v1/admin/users/{user_id}",
+    #             headers=headers
+    #         )
+    #         if response.status_code == 204:
+    #             return jsonify({"message": "User deleted successfully"}), 200
+    #         else:
+    #             return jsonify({"error": "Failed to delete user", "details": response.json()}), response.status_code
+    #     except Exception as e:
+    #         print(f"Error deleting user: {e}")
+    #         return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/browse", methods=["GET"])
     def browse():
@@ -121,19 +121,22 @@ def create_app():
         if not room_name:
             return jsonify({"error": "Room name is required"}), 400
 
-        res = supabase.table("room").insert({"name": room_name, "description": room_desc, "creator_id": creator_id}).execute()
+        res = supabase.table("room").insert({"name": room_name, "description": room_desc, "room_creator": creator_id}).execute()
         return jsonify(res.data), 201
 
     @app.route("/api/rooms/<room_id>", methods=["GET"])
     def get_room_info(room_id):
-        error = verify_token()
-        if error:
-            return error
+        user = verify_token(return_user=True)
+        if not user:
+            return jsonify({"error": "Invalid token"}), 401
         
         res = supabase.table("room").select("*").eq("id", room_id).execute()
         if not res:
             return jsonify({"error": "Room doesn't exist"}), 404
-        return jsonify(res.data[0])
+        
+        res.data[0]["user_id"] = user.id
+        
+        return jsonify(res.data[0]), 200
 
     @app.route("/api/rooms/<room_id>/messages", methods=["GET"])
     def get_room_messages(room_id):
@@ -238,6 +241,15 @@ def create_app():
 
         supabase.table("video_queue").delete().eq("id", video_id).execute()
         return jsonify({"message": "Video removed from queue"}), 200
+    
+    @app.route("/api/rooms/<room_id>/delete", methods=["DELETE"])
+    def delete_room(room_id):
+        error = verify_token()
+        if error:
+            return error
+
+        supabase.table("room").delete().eq("id", room_id).execute()
+        return jsonify({"message": "Room deleted"}), 200
 
     @app.route("/api/verify-token", methods=["GET", "OPTIONS"])
     def verify():

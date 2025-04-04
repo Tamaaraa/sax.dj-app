@@ -23,7 +23,7 @@
           />
           <div class="room-info">
             <h3 class="room-title">{{ room.name }}</h3>
-            <p class="room-description">{{ room.description }}</p>
+            <p class="room-description">{{ room.description.slice(0, 50) }}</p>
           </div>
         </router-link>
       </div>
@@ -32,11 +32,17 @@
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
         <h2>Create a New Room</h2>
-        <input v-model="roomName" placeholder="Room Name" />
-        <textarea v-model="roomDesc" placeholder="Room Description"></textarea>
+        <input v-model="roomName" id="roomName" placeholder="Room Name" />
+        <textarea
+          v-model="roomDesc"
+          id="roomDesc"
+          placeholder="Room Description"
+        ></textarea>
         <div class="modal-buttons">
-          <button @click="createRoom">Create</button>
-          <button @click="showModal = false">Cancel</button>
+          <button @click="createRoom" id="roomCreateBtn">Create</button>
+          <button @click="showModal = false" id="createCancelBtn">
+            Cancel
+          </button>
         </div>
       </div>
     </div>

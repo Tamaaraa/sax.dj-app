@@ -5,6 +5,13 @@
         ← Back
       </button>
       <h1 class="room-name">{{ room_data.name }}</h1>
+      <button
+        v-if="room_data.room_creator == room_data.user_id"
+        @click="removeRoom()"
+        class="remove-button"
+      >
+        Remove room
+      </button>
     </div>
 
     <div class="content">
@@ -48,6 +55,7 @@ export default {
   data() {
     return {
       room_data: {},
+      room_id: null,
       messages: [],
       newMessage: "",
       socket: null,
@@ -56,6 +64,7 @@ export default {
   mounted() {
     const token = localStorage.getItem("token");
     const room_id = this.$route.params.room_id;
+    this.room_id = room_id;
 
     if (!token) {
       console.error("No token found, redirecting to login...");
@@ -65,14 +74,16 @@ export default {
 
     // Fetch room details
     axios
-      .get(`http://127.0.0.1:5000/api/rooms/${room_id}`, {
+      .get(`http://127.0.0.1:5000/api/rooms/${this.room_id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
         this.room_data = response.data;
-        this.room_data.id = room_id;
       })
-      .catch((error) => console.error("Error fetching room data:", error));
+      .catch((error) => {
+        console.error("Error fetching room data:", error);
+        this.$router.push("/browse");
+      });
 
     this.fetchMessages();
 
@@ -92,16 +103,14 @@ export default {
     async fetchMessages() {
       try {
         const token = localStorage.getItem("token");
-        const room_id = this.$route.params.room_id;
 
         const response = await axios.get(
-          `http://127.0.0.1:5000/api/rooms/${room_id}/messages`,
+          `http://127.0.0.1:5000/api/rooms/${this.room_id}/messages`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
         this.messages = response.data;
-        console.log(response.data);
 
         this.$nextTick(() => {
           this.scrollToBottom();
@@ -113,13 +122,11 @@ export default {
     sendMessage() {
       if (!this.newMessage) return;
       const token = localStorage.getItem("token");
-      const username = localStorage.getItem("username");
 
       this.socket.emit("message", {
-        room_id: this.room_data.id,
+        room_id: this.room_id,
         content: this.newMessage,
         token,
-        username,
       });
 
       this.newMessage = "";
@@ -129,6 +136,22 @@ export default {
       const chatContainer = this.$el.querySelector(".chat-messages");
       if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    },
+
+    async removeRoom() {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.delete(
+        `http://127.0.0.1:5000/api/rooms/${this.room_id}/delete`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (response.status == 200) {
+        this.$router.push("/browse");
+      } else {
+        console.error("Error removing room:", response.data);
       }
     },
   },
@@ -162,25 +185,41 @@ body {
 .room-top-bar {
   display: flex;
   align-items: center;
-  padding: 10px 90px 10px 10px;
+  justify-content: space-between;
+  padding: 10px 20px;
   background: #222;
   color: white;
   width: 100%;
 }
 
 .back-button {
+  margin-right: auto;
+  background: none;
+  border: none;
+  text-align: left;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  max-width: 150px;
+}
+
+.room-name {
+  font-size: 1.5rem;
+  font-weight: 500;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.remove-button {
+  margin-left: auto;
   background: none;
   border: none;
   color: white;
   font-size: 1.2rem;
   cursor: pointer;
-  max-width: 90px;
-}
-
-.room-name {
-  margin: 0 auto;
-  font-size: 1.5rem;
-  font-weight: 500;
+  max-width: 170px;
+  color: red;
+  text-transform: uppercase;
 }
 
 .content {
