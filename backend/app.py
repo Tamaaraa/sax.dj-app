@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -11,10 +13,10 @@ env_path = os.path.join(os.path.dirname(__file__), '../.env')
 load_dotenv(dotenv_path=env_path)
 
 
-def create_app():
+def create_app(app=None, env=None):
     app = Flask(__name__)
     CORS(app)
-    socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173")
+    socketio = SocketIO(app, cors_allowed_origins="http://localhost:8080")
 
     url: str = os.environ.get("SUPA_URL")
     key: str = os.environ.get("SUPA_KEY")
@@ -72,32 +74,7 @@ def create_app():
             }), 200
 
         except Exception as e:
-            print(f"Login error: {e}")
             return jsonify({"error": f"Login error: {(str(e))}"}), 400
-
-    # @app.route("/api/login/delete", methods=["DELETE"])
-    # def delete_user():
-    #     admin_key = os.environ.get("SUPA_SERVICE_ROLE")
-    #     if not admin_key:
-    #         return jsonify({"error": "Admin key not configured"}), 500
-
-    #     user_id = request.json.get("user_id")
-    #     if not user_id:
-    #         return jsonify({"error": "User ID is required"}), 400
-
-    #     try:
-    #         headers = {"Authorization": f"Bearer {admin_key}"}
-    #         response = requests.delete(
-    #             f"{url}/auth/v1/admin/users/{user_id}",
-    #             headers=headers
-    #         )
-    #         if response.status_code == 204:
-    #             return jsonify({"message": "User deleted successfully"}), 200
-    #         else:
-    #             return jsonify({"error": "Failed to delete user", "details": response.json()}), response.status_code
-    #     except Exception as e:
-    #         print(f"Error deleting user: {e}")
-    #         return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/browse", methods=["GET"])
     def browse():
@@ -264,7 +241,7 @@ def create_app():
 
     def cors_preflight():
         response = jsonify({"message": "CORS preflight success"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         return response
