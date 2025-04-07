@@ -9,6 +9,7 @@ module.exports = {
     supportFile: false,
     setupNodeEvents(on, config) {
       config.env.TEST_ACC_1_PASS = process.env.TEST_ACC_1_PASS;
+      config.env.TEST_ACC_2_PASS = process.env.TEST_ACC_2_PASS;
       return config;
     },
   },

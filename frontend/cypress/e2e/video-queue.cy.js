@@ -1,6 +1,8 @@
 import "../support/commands";
 
 describe("Video Queue", () => {
+  const randomRoomName = Math.random().toString(36).substring(2, 12);
+
   beforeEach(() => {
     cy.login();
   });
@@ -9,15 +11,15 @@ describe("Video Queue", () => {
     cy.visit("/browse");
     cy.get("button").contains("Create Room").click();
     cy.wait(100);
-    cy.get("input[id=roomName]").type("Video Test Room");
+    cy.get("input[id=roomName]").type(randomRoomName);
     cy.get("button[id=roomCreateBtn]").click();
     cy.wait(200);
-    cy.contains("Video Test Room").should("exist");
+    cy.contains(randomRoomName).should("exist");
   });
 
   it("should add a video to the queue", () => {
     cy.visit("/browse");
-    cy.contains("Video Test Room").click();
+    cy.contains(randomRoomName).click();
     cy.wait(500);
 
     const videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
@@ -34,7 +36,7 @@ describe("Video Queue", () => {
 
   it("should remove a video from the queue", () => {
     cy.visit("/browse");
-    cy.contains("Video Test Room").click();
+    cy.contains(randomRoomName).click();
     cy.wait(500);
 
     const videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
@@ -59,10 +61,10 @@ describe("Video Queue", () => {
 
   after(() => {
     cy.visit("/browse");
-    cy.contains("Video Test Room").click();
+    cy.contains(randomRoomName).click();
     cy.wait(500);
     cy.get("button").contains("Remove room").click();
     cy.wait(1000);
-    cy.contains("Video Test Room").should("not.exist");
+    cy.contains(randomRoomName).should("not.exist");
   });
 });
