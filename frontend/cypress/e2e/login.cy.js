@@ -7,9 +7,9 @@ describe("Login", () => {
 
   it("should log the user out", () => {
     cy.visit("/browse");
-    cy.wait(1000);
+    cy.wait(500);
     cy.get("button").contains("Logout").click();
-    cy.wait(1000);
+    cy.wait(500);
     cy.get("button").contains("Login").should("exist");
   });
 });
