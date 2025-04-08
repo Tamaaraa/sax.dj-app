@@ -31,9 +31,12 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth && token) {
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/verify-token", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/verify-token`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (response.status === 401) {
         const data = await response.json();
         if (data.logout) {

@@ -1,5 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -9,14 +7,12 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime 
 import requests
 
-env_path = os.path.join(os.path.dirname(__file__), '../.env')
-load_dotenv(dotenv_path=env_path)
-
+load_dotenv()
 
 def create_app(app=None, env=None):
     app = Flask(__name__)
-    CORS(app)
-    socketio = SocketIO(app, cors_allowed_origins="http://localhost:8080")
+    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080"]}})
+    socketio = SocketIO(app, cors_allowed_origins=["http://localhost:8080", "http://127.0.0.1:8080"])
 
     url: str = os.environ.get("SUPA_URL")
     key: str = os.environ.get("SUPA_KEY")
@@ -24,11 +20,8 @@ def create_app(app=None, env=None):
     
     initialize_users(supabase)
 
-    @app.route("/api/register", methods=["POST", "OPTIONS"])
+    @app.route("/api/register", methods=["POST"])
     def register():
-        if request.method == "OPTIONS":
-            return cors_preflight()
-        
         data = request.json
         email = data.get("email")
         password = data.get("password")
@@ -49,11 +42,8 @@ def create_app(app=None, env=None):
             print(f"Login error: {e}")
             return jsonify({"error": f"Sign up error: {(str(e))}"}), 400
 
-    @app.route("/api/login", methods=["POST", "OPTIONS"])
-    def login():
-        if request.method == "OPTIONS":
-            return cors_preflight()
-        
+    @app.route("/api/login", methods=["POST"])
+    def login(): 
         data = request.json
         email = data.get("email")
         password = data.get("password")
@@ -228,24 +218,14 @@ def create_app(app=None, env=None):
         supabase.table("room").delete().eq("id", room_id).execute()
         return jsonify({"message": "Room deleted"}), 200
 
-    @app.route("/api/verify-token", methods=["GET", "OPTIONS"])
+    @app.route("/api/verify-token", methods=["GET"])
     def verify():
-        if request.method == "OPTIONS":
-            return cors_preflight()
-
         error = verify_token()
         if error:
             return error
 
         return jsonify({"message": "Token is valid"}), 200
-
-    def cors_preflight():
-        response = jsonify({"message": "CORS preflight success"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:8080")
-        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        return response
-
+    
     def verify_token(token=None, return_user=False):
         if not token:
             token = request.headers.get("Authorization")
@@ -358,4 +338,4 @@ def initialize_users(supabase):
 
 if __name__ == "__main__":
     app, socketio = create_app()
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, allow_unsafe_werkzeug=True)

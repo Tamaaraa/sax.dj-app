@@ -78,11 +78,14 @@ export default {
           return;
         }
 
-        const response = await axios.get("http://127.0.0.1:5000/api/browse", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/browse`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         this.rooms = response.data;
       } catch (error) {
@@ -100,7 +103,7 @@ export default {
           return;
         }
         await axios.post(
-          "http://127.0.0.1:5000/api/rooms/create",
+          `${import.meta.env.VITE_API_URL}/api/rooms/create`,
           {
             name: this.roomName,
             description: this.roomDesc,

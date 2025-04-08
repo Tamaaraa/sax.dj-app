@@ -74,7 +74,7 @@ export default {
 
     // Fetch room details
     axios
-      .get(`http://127.0.0.1:5000/api/rooms/${this.room_id}`, {
+      .get(`${import.meta.env.VITE_API_URL}/api/rooms/${this.room_id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
@@ -87,7 +87,7 @@ export default {
 
     this.fetchMessages();
 
-    this.socket = io("http://127.0.0.1:5000");
+    this.socket = io(`${import.meta.env.VITE_API_URL}`);
 
     this.socket.emit("join", { room_id });
 
@@ -105,7 +105,7 @@ export default {
         const token = localStorage.getItem("token");
 
         const response = await axios.get(
-          `http://127.0.0.1:5000/api/rooms/${this.room_id}/messages`,
+          `${import.meta.env.VITE_API_URL}/api/rooms/${this.room_id}/messages`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -143,7 +143,7 @@ export default {
       const token = localStorage.getItem("token");
 
       const response = await axios.delete(
-        `http://127.0.0.1:5000/api/rooms/${this.room_id}/delete`,
+        `${import.meta.env.VITE_API_URL}/api/rooms/${this.room_id}/delete`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

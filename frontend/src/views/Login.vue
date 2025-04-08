@@ -43,8 +43,8 @@ export default {
   methods: {
     async handleLogin() {
       const url = this.isLogin
-        ? "http://127.0.0.1:5000/api/login"
-        : "http://127.0.0.1:5000/api/register";
+        ? `${import.meta.env.VITE_API_URL}/api/login`
+        : `${import.meta.env.VITE_API_URL}/api/register`;
 
       const loginDetails = {
         email: this.email,

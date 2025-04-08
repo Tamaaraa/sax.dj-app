@@ -58,7 +58,7 @@ export default {
         const token = localStorage.getItem("token");
 
         const response = await axios.get(
-          `http://127.0.0.1:5000/api/rooms/${room_id}/queue`,
+          `${import.meta.env.VITE_API_URL}/api/rooms/${room_id}/queue`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -88,7 +88,7 @@ export default {
         const token = localStorage.getItem("token");
 
         await axios.post(
-          `http://127.0.0.1:5000/api/rooms/${room_id}/queue`,
+          `${import.meta.env.VITE_API_URL}/api/rooms/${room_id}/queue`,
           {
             video_url: this.newVideoUrl,
             requester: localStorage.getItem("username"),
@@ -108,10 +108,13 @@ export default {
         const room_id = this.$route.params.room_id;
         const token = localStorage.getItem("token");
 
-        await axios.delete(`http://127.0.0.1:5000/api/rooms/${room_id}/queue`, {
-          headers: { Authorization: `Bearer ${token}` },
-          data: { video_id: videoId },
-        });
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/rooms/${room_id}/queue`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            data: { video_id: videoId },
+          }
+        );
         this.fetchVideoQueue();
       } catch (error) {
         console.error("Error removing video from queue:", error);
