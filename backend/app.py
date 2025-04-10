@@ -11,8 +11,8 @@ load_dotenv()
 
 def create_app(app=None, env=None):
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://127.0.0.1:8080"]}})
-    socketio = SocketIO(app, cors_allowed_origins=["http://localhost:8080", "http://127.0.0.1:8080"])
+    CORS(app, resources={r"/api/*": {"origins": [os.environ.get("FRONT_END_URL")]}})
+    socketio = SocketIO(app, cors_allowed_origins=[os.environ.get("FRONT_END_URL")])
 
     url: str = os.environ.get("SUPA_URL")
     key: str = os.environ.get("SUPA_KEY")
@@ -328,7 +328,7 @@ def initialize_users(supabase):
                     "options": {"data": {"display_name": user["username"]}}
                 })
                 if response and response.user:
-                    res2 = supabase.table("users").insert([{
+                    supabase.table("users").insert([{
                         "user_id": response.user.id,
                         "display_name": user["username"]
                     }]).execute()
