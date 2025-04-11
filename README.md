@@ -55,7 +55,7 @@ Backend (Flask API)
 cd backend
 pip install -r requirements.txt
 # change DEV_MODE in .env to 'true'
-flask run
+python ./app.py
 ```
 
 Frontend (Vue)
