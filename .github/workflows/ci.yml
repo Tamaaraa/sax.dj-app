@@ -34,10 +34,12 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+
       - name: Set up Node
         uses: actions/setup-node@v3
         with:
           node-version: 23
+
       - name: 📦 Install backend dependencies
         run: |
           cd backend
@@ -50,7 +52,7 @@ jobs:
 
       - env:
           DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
-          FRONT_END_URL: ${{ secrets.VITE_API_URL }}
+          FRONT_END_URL: ${{ secrets.FRONT_END_URL }}
           SUPA_KEY: ${{ secrets.SUPA_KEY }}
           SUPA_URL: ${{ secrets.SUPA_URL }}
           TEST_ACC_1_PASS: ${{ secrets.TEST_ACC_1_PASS }}
@@ -59,12 +61,15 @@ jobs:
         run: |
           cd backend
           python app.py &
-      - name: Cypress Tests
+
+      - name: Run Cypress E2E Tests
         uses: cypress-io/github-action@v6
         with:
-          start: npm run dev
-          wait-on: http://localhost:8080
           working-directory: frontend
+          start: npm run dev
+          wait-on: http://localhost:5173
+          wait-on-timeout: 60
+
 name: CI
 "on":
   pull_request:
