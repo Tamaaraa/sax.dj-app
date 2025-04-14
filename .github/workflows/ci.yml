@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-lint:
+    runs-on: ubuntu-latest
+    env:
+      SUPA_URL: ${{ secrets.SUPA_URL }}
+      SUPA_KEY: ${{ secrets.SUPA_KEY }}
+      SUPA_SERVICE_ROLE: ${{ secrets.SUPA_SERVICE_ROLE }}
+      TEST_ACC_1_PASS: ${{ secrets.TEST_ACC_1_PASS }}
+      TEST_ACC_2_PASS: ${{ secrets.TEST_ACC_2_PASS }}
+      FRONT_END_URL: ${{ secrets.FRONT_END_URL }}
+      DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install libraries
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Linting check
+        run: |
+          cd backend
+          flake8
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    env:
+      FRONT_END_URL: ${{ secrets.VITE_API_URL }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Start app
+        run: |
+          npm run dev &
+        working-directory: frontend
+
+      - name: Cypress Tests
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          start: npm run dev
+          wait-on: http://localhost:8080
