@@ -7,8 +7,6 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from supabase import Client, create_client
 
-load_dotenv()
-
 
 def create_app(app=None, env=None):
     app = Flask(__name__)
@@ -70,7 +68,7 @@ def create_app(app=None, env=None):
             response = supabase.auth.sign_in_with_password({
                 "email": email,
                 "password": password
-                })
+            })
 
             if not response or not response.session:
                 return jsonify({"error": "Invalid email or password"}), 400
@@ -193,8 +191,9 @@ def create_app(app=None, env=None):
 
         video_url += "?autoplay=1&showinfo=0&controls=0"
 
+        video_json = f"https://www.youtube.com/watch?v={video_id}"
+
         try:
-            video_json = f"https://www.youtube.com/watch?{video_id}"
             response = requests.get(
                 f"https://www.youtube.com/oembed?url={video_json}&format=json")
             response.raise_for_status()
@@ -383,5 +382,17 @@ def initialize_users(supabase):
 
 
 if __name__ == "__main__":
+    load_dotenv()
     app, socketio = create_app()
-    socketio.run(app, host="0.0.0.0", port=5000, allow_unsafe_werkzeug=True)
+    if os.environ.get("DEBUG_MODE") == "True":
+        socketio.run(app,
+                     host="0.0.0.0",
+                     port=5000,
+                     debug=True,
+                     allow_unsafe_werkzeug=False)
+    else:
+        socketio.run(app,
+                     host="0.0.0.0",
+                     port=5000,
+                     debug=False,
+                     allow_unsafe_werkzeug=True)

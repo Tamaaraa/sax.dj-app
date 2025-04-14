@@ -29,3 +29,4 @@ coverage
 /cypress/videos/
 /cypress/screenshots/
 /frontend/cypress/downloads
+backend/__pycache__/app.cpython-311.pyc
