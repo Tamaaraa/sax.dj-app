@@ -29,7 +29,7 @@ docker-compose up --build
 
 This launches both frontend and backend using Docker Compose.
 
-Frontend runs at: http://localhost:8080
+Frontend runs at: http://localhost:5173
 Backend API at: http://localhost:5000
 
 ---

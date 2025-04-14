@@ -11,10 +11,12 @@ from supabase import Client, create_client
 def create_app(app=None, env=None):
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {
-        "origins": [os.environ.get("FRONT_END_URL")]
+        "origins": [os.environ.get("FRONT_END_URL"), "http://localhost:5173"]
         }})
     socketio = SocketIO(app,
-                        cors_allowed_origins=[os.environ.get("FRONT_END_URL")])
+                        cors_allowed_origins=[
+                            os.environ.get("FRONT_END_URL"),
+                            "http://localhost:5173"])
 
     url: str = os.environ.get("SUPA_URL")
     key: str = os.environ.get("SUPA_KEY")
