@@ -45,8 +45,10 @@ flake8 backend
 ```
 Install pre-commit to enforce linting before commits.
 
+```bash
 pip install pre-commit
 pre-commit install
+```
 
 ### Local Development
 Backend (Flask API)
