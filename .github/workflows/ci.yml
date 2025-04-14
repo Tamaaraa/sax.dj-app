@@ -50,14 +50,19 @@ jobs:
           cd frontend
           npm ci
 
-      - env:
-          DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
-          FRONT_END_URL: ${{ secrets.FRONT_END_URL }}
-          SUPA_KEY: ${{ secrets.SUPA_KEY }}
-          SUPA_URL: ${{ secrets.SUPA_URL }}
-          TEST_ACC_1_PASS: ${{ secrets.TEST_ACC_1_PASS }}
-          TEST_ACC_2_PASS: ${{ secrets.TEST_ACC_2_PASS }}
-        name: Start app
+      - name: 📝 Create backend .env file
+        run: |
+          cat <<EOF > backend/.env
+          SUPA_URL=${{ secrets.SUPA_URL }}
+          SUPA_KEY=${{ secrets.SUPA_KEY }}
+          SUPA_SERVICE_ROLE=${{ secrets.SUPA_SERVICE_ROLE }}
+          TEST_ACC_1_PASS=${{ secrets.TEST_ACC_1_PASS }}
+          TEST_ACC_2_PASS=${{ secrets.TEST_ACC_2_PASS }}
+          FRONT_END_URL=${{ secrets.FRONT_END_URL }}
+          DEBUG_MODE=${{ secrets.DEBUG_MODE }}
+          EOF
+
+      - name: Start app
         run: |
           cd backend
           python app.py &
