@@ -1,32 +1,22 @@
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
+---
 jobs:
   backend-lint:
-    runs-on: ubuntu-latest
     env:
-      SUPA_URL: ${{ secrets.SUPA_URL }}
+      DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
+      FRONT_END_URL: ${{ secrets.FRONT_END_URL }}
       SUPA_KEY: ${{ secrets.SUPA_KEY }}
       SUPA_SERVICE_ROLE: ${{ secrets.SUPA_SERVICE_ROLE }}
+      SUPA_URL: ${{ secrets.SUPA_URL }}
       TEST_ACC_1_PASS: ${{ secrets.TEST_ACC_1_PASS }}
       TEST_ACC_2_PASS: ${{ secrets.TEST_ACC_2_PASS }}
-      FRONT_END_URL: ${{ secrets.FRONT_END_URL }}
-      DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
-
       - name: Install libraries
         run: |
           cd backend
@@ -38,32 +28,46 @@ jobs:
           flake8
 
   frontend-e2e:
-    runs-on: ubuntu-latest
     env:
-      FRONT_END_URL: ${{ secrets.VITE_API_URL }}
-
+      VITE_API_URL: ${{ secrets.VITE_API_URL }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-
       - name: Set up Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 23
+      - name: 📦 Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
 
       - name: Install frontend dependencies
         run: |
           cd frontend
           npm ci
 
-      - name: Start app
+      - env:
+          DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
+          FRONT_END_URL: ${{ secrets.VITE_API_URL }}
+          SUPA_KEY: ${{ secrets.SUPA_KEY }}
+          SUPA_URL: ${{ secrets.SUPA_URL }}
+          TEST_ACC_1_PASS: ${{ secrets.TEST_ACC_1_PASS }}
+          TEST_ACC_2_PASS: ${{ secrets.TEST_ACC_2_PASS }}
+        name: Start app
         run: |
-          npm run dev &
-        working-directory: frontend
-
+          cd backend
+          python app.py &
       - name: Cypress Tests
         uses: cypress-io/github-action@v6
         with:
-          working-directory: frontend
           start: npm run dev
           wait-on: http://localhost:8080
+          working-directory: frontend
+name: CI
+"on":
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
