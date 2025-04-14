@@ -384,12 +384,12 @@ def initialize_users(supabase):
 if __name__ == "__main__":
     load_dotenv()
     app, socketio = create_app()
-    if os.environ.get("DEBUG_MODE") == "True":
+    debug = os.environ.get("DEBUG_MODE")
+    if debug == "True":
         socketio.run(app,
                      host="0.0.0.0",
                      port=5000,
-                     debug=True,
-                     allow_unsafe_werkzeug=False)
+                     debug=True)
     else:
         socketio.run(app,
                      host="0.0.0.0",
