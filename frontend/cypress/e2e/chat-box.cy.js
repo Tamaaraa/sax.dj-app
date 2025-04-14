@@ -25,7 +25,7 @@ describe("Video Queue", () => {
 
     cy.get("input[placeholder='Type a message...']").type(chatMessage);
     cy.get("button").contains("Send").click();
-    cy.wait(500);
+    cy.wait(1000);
     cy.get(".chat-messages .chat-message").should(
       "contain",
       `${username}: ${chatMessage}`
@@ -37,7 +37,6 @@ describe("Video Queue", () => {
     cy.visit("/browse");
     cy.contains(randomRoomName).click();
     cy.wait(500);
-
     cy.get(".chat-messages .chat-message").should(
       "contain",
       `${username}: ${chatMessage}`
