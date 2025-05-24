@@ -2,10 +2,14 @@ import os
 from datetime import datetime
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, json, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from supabase import Client, create_client
+import redis
+import yt_dlp
+import time
+import uuid
 
 
 def create_app(app=None, env=None):
@@ -17,10 +21,6 @@ def create_app(app=None, env=None):
                         cors_allowed_origins=[
                             os.environ.get("FRONT_END_URL"),
                             "http://localhost:5173"])
-
-    url: str = os.environ.get("SUPA_URL")
-    key: str = os.environ.get("SUPA_KEY")
-    supabase: Client = create_client(url, key)
 
     initialize_users(supabase)
 
@@ -160,14 +160,9 @@ def create_app(app=None, env=None):
 
     @app.route("/api/rooms/<room_id>/queue", methods=["GET"])
     def get_video_queue(room_id):
-        queue = (
-            supabase.table("video_queue")
-            .select("*")
-            .eq("room_id", room_id)
-            .order("position", desc=False)
-            .execute()
-        )
-        return jsonify(queue.data)
+        r_queue = f"room:{room_id}:queue"
+        queue = redis_client.lrange(r_queue, 0, -1)
+        return [json.loads(item) for item in queue]
 
     @app.route("/api/rooms/<room_id>/queue", methods=["POST"])
     def add_video_to_queue(room_id):
@@ -180,54 +175,16 @@ def create_app(app=None, env=None):
         if not video_url:
             return jsonify({"error": "Video URL is required"}), 400
 
-        if video_url.startswith("https://www.youtube.com/watch?v="):
-            video_id = video_url.split('=')[1]
-            video_url = f"https://www.youtube.com/embed/{video_id}"
-        elif video_url.startswith("https://youtu.be/"):
-            video_id = video_url.split('/')[3]
-            video_url = f"https://www.youtube.com/embed/{video_id}"
-        elif video_url.startswith("https://www.youtube.com/embed/"):
-            video_id = video_url.split('/')[-1]
-        else:
-            return jsonify({"error": "Invalid video URL"}), 400
+        video_data = get_video_data(video_url)
+        video_data["requester"] = data.get("requester")
+        video_data["id"] = str(uuid.uuid4())
 
-        video_url += "?autoplay=1&showinfo=0&controls=0"
+        r_queue = f"room:{room_id}:queue"
+        r_current = f"room:{room_id}:current_video"
 
-        video_json = f"https://www.youtube.com/watch?v={video_id}"
-
-        try:
-            response = requests.get(
-                f"https://www.youtube.com/oembed?url={video_json}&format=json")
-            response.raise_for_status()
-            video_title = response.json().get("title", "Unknown Title")
-            video_thumbnail = response.json().get(
-                "thumbnail_url",
-                "https://cdn-icons-png.freepik.com/512/683/683935.png"
-            )
-        except Exception as e:
-            print(f"Error fetching video title: {e}")
-            video_title = "Unknown Title"
-
-        max_position = (
-            supabase.table("video_queue")
-            .select("position")
-            .eq("room_id", room_id)
-            .order("position", desc=True)
-            .limit(1)
-            .execute()
-        )
-        next_position = (
-            max_position.data[0]["position"] + 1
-            ) if max_position.data else 1
-
-        supabase.table("video_queue").insert({
-            "room_id": room_id,
-            "video_url": video_url,
-            "video_title": video_title,
-            "position": next_position,
-            "requester": data.get("requester"),
-            "video_thumbnail": video_thumbnail,
-        }).execute()
+        redis_client.rpush(r_queue, json.dumps(video_data))
+        if not redis_client.exists(r_current):
+            play_next_video(room_id)
 
         return jsonify({"message": "Video added to queue"}), 201
 
@@ -238,11 +195,17 @@ def create_app(app=None, env=None):
             return error
 
         data = request.json
-        video_id = data.get("video_id")
-        if not video_id:
-            return jsonify({"error": "Video ID required"}), 400
 
-        supabase.table("video_queue").delete().eq("id", video_id).execute()
+        r_queue = f"room:{room_id}:queue"
+        queue = redis_client.lrange(r_queue, 0, -1)
+
+        for item in queue:
+            item_data = json.loads(item)
+            video_id = data.get("video_id")
+            if item_data.get("id") == video_id:
+                redis_client.lrem(r_queue, 1, item)
+                break
+
         return jsonify({"message": "Video removed from queue"}), 200
 
     @app.route("/api/rooms/<room_id>/delete", methods=["DELETE"])
@@ -326,27 +289,7 @@ def create_app(app=None, env=None):
 
     @socketio.on("play_next_video")
     def handle_play_next_video(data):
-        room_id = data["room_id"]
-
-        next_video = (
-            supabase.table("video_queue")
-            .select("*")
-            .eq("room_id", room_id)
-            .order("position", desc=False)
-            .limit(1)
-            .execute()
-        )
-
-        if next_video.data:
-            video = next_video.data[0]
-            supabase.table("room").update({
-                "room_thumbnail": video["video_thumbnail"]
-                }).eq("id", room_id).execute()
-            emit("play_video", {"video_url": video["video_url"]}, room=room_id)
-
-            supabase.table("video_queue").delete().eq(
-                "id", video["id"]
-            ).execute()
+        pass
 
     return app, socketio
 
@@ -383,9 +326,98 @@ def initialize_users(supabase):
             print(f"Error initializing user {user['email']}: {e}")
 
 
+def get_video_data(video_url):
+    if video_url.startswith("https://www.youtube.com/watch?v="):
+        video_id = video_url.split('=')[1]
+        video_url = f"https://www.youtube.com/embed/{video_id}"
+    elif video_url.startswith("https://youtu.be/"):
+        video_id = video_url.split('/')[3]
+        video_url = f"https://www.youtube.com/embed/{video_id}"
+    elif video_url.startswith("https://www.youtube.com/embed/"):
+        video_id = video_url.split('/')[-1]
+    else:
+        return jsonify({"error": "Invalid video URL"}), 400
+
+    video_url += "?autoplay=1&showinfo=0&controls=0"
+
+    video_json = f"https://www.youtube.com/watch?v={video_id}"
+
+    try:
+        response = requests.get(
+            f"https://www.youtube.com/oembed?url={video_json}&format=json")
+        response.raise_for_status()
+        video_title = response.json().get("title", "Unknown Title")
+        video_thumbnail = response.json().get(
+            "thumbnail_url",
+            "https://cdn-icons-png.freepik.com/512/683/683935.png"
+        )
+    except Exception as e:
+        print(f"Error fetching video title: {e}")
+        video_title = "Unknown Title"
+
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True, 'skip_download': True}) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+            video_duration = info.get('duration')
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return {"video_url": video_url,
+            "title": video_title,
+            "thumbnail": video_thumbnail,
+            "duration": video_duration}
+
+
+def play_next_video(room_id):
+    r_queue = f"room:{room_id}:queue"
+    r_current = f"room:{room_id}:current_video"
+    r_start_time = f"room:{room_id}:current_start_time"
+
+    next = redis_client.lpop(r_queue)
+    if next:
+        video = json.loads(next)
+
+        redis_client.hset(r_current, mapping=video)
+        redis_client.set(r_start_time, int(time.time()))
+
+        supabase.table("room").update({
+            "room_thumbnail": video["thumbnail"]
+            }).eq("id", room_id).execute()
+
+    else:
+        redis_client.delete(r_current, r_start_time)
+
+
+def check_room_video(room_id):
+    r_start = f"room:{room_id}:current_start_time"
+    r_current = f"room:{room_id}:current_video"
+
+    if not redis_client.exists(r_current):
+        return
+
+    start_time = int(redis_client.get(r_start))
+    video = redis_client.hgetall(r_current)
+    duration = int(video.get("duration", 0))
+
+    if time.time() - start_time >= duration:
+        play_next_video(room_id)
+
+
 if __name__ == "__main__":
     load_dotenv()
+
+    redis_client = redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=6379,
+        decode_responses=True
+    )
+
+    url: str = os.environ.get("SUPA_URL")
+    key: str = os.environ.get("SUPA_KEY")
+    supabase: Client = create_client(url, key)
+
     app, socketio = create_app()
+
     debug = os.environ.get("DEBUG_MODE")
     if debug == "True":
         socketio.run(app,

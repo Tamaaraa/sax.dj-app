@@ -9,6 +9,9 @@ services:
       - ./backend:/app
     environment:
       - FLASK_ENV=production
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
 
   frontend:
     build:
@@ -20,3 +23,14 @@ services:
       - backend
     environment:
       - VITE_API_URL=http://backend:5000
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:

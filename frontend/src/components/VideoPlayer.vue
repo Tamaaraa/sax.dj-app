@@ -66,7 +66,7 @@ export default {
         this.videoQueue = response.data.map((video) => ({
           id: video.id,
           video_url: video.video_url,
-          video_name: video.video_title,
+          video_name: video.title,
           requested_by: video.requester,
         }));
 

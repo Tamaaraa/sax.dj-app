@@ -1,7 +1,10 @@
 Flask==3.1.0
-Flask-Cors==5.0.1
+Flask-Cors==6.0.0
 python-dotenv==1.0.1
 supabase==2.15.0
 flask-socketio==5.3.6
 requests==2.31.0
 flake8==7.2.0
+redis==6.1.0
+yt-dlp==2025.5.22
+# For development purposes
